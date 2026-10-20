@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calculadora">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>*{box-sizing:border-box}html{background:#000}body{margin:0}[hidden]{display:none!important}</style>
+<title>Calculadora</title>
+<style>
+  /* Layout: a single black column like a handset screen; display pinned to the bottom of the free space, 4x5 grid of round keys below. */
+  :root {
+    --screen: #000000;
+    --display: #ffffff;
+    --fn: #a5a5a5;
+    --fn-down: #d9d9d9;
+    --fn-ink: #000000;
+    --num: #333333;
+    --num-down: #737373;
+    --num-ink: #ffffff;
+    --op: #ff9500;
+    --op-down: #fcc78a;
+    --op-on: #ffffff;
+    --op-on-ink: #ff9500;
+    --gap: clamp(10px, 3.2vw, 16px);
+    --ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Roboto, Arial, sans-serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--screen);
+    color: var(--display);
+    font-family: var(--ui);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    justify-content: center;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .calc {
+    width: min(100%, calc((100vh - 110px) * 0.8));
+    min-width: 260px;
+    container-type: inline-size;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .screen {
+    min-height: 0;
+    flex: 1 1 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0 8px 4px;
+    overflow: hidden;
+    cursor: ew-resize;
+  }
+  #display {
+    font-weight: 200;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    max-width: 100%;
+    overflow: hidden;
+  }
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3.6cqw;
+  }
+  .key {
+    appearance: none;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    font-family: var(--ui);
+    font-size: 8.6cqw;
+    font-weight: 300;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.35s ease, color 0.35s ease;
+  }
+  .key:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+  .key.fn  { background: var(--fn);  color: var(--fn-ink); font-size: 7.2cqw; }
+  .key.num { background: var(--num); color: var(--num-ink); }
+  .key.op  { background: var(--op);  color: #ffffff; font-size: 11cqw; font-weight: 400; }
+  .key.zero {
+    grid-column: span 2;
+    aspect-ratio: auto;
+    height: 100%;
+    border-radius: 999px;
+    justify-content: flex-start;
+    padding-left: 11%;
+  }
+  .key.fn:active,  .key.fn.pressed  { background: var(--fn-down);  transition: none; }
+  .key.num:active, .key.num.pressed { background: var(--num-down); transition: none; }
+  .key.op:active,  .key.op.pressed  { background: var(--op-down);  transition: none; }
+  .key.op.on { background: var(--op-on); color: var(--op-on-ink); }
+  .fs {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: 36px; height: 36px;
+    border: 0; border-radius: 50%;
+    background: var(--num); color: var(--num-ink);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0.7;
+  }
+  .fs:hover, .fs:focus-visible { opacity: 1; }
+  .fs svg { width: 18px; height: 18px; }
+  @media (prefers-reduced-motion: reduce) { .key { transition: none; } }
+</style>
+
+<main class="calc" aria-label="Calculadora">
+  <div class="screen" id="screen" aria-live="polite"><div id="display">0</div></div>
+  <div class="keys" id="keys">
+    <button class="key fn" data-k="clear" id="clear" aria-label="Borrar">AC</button>
+    <button class="key fn" data-k="neg" aria-label="Cambiar signo">+/&#8722;</button>
+    <button class="key fn" data-k="pct" aria-label="Porcentaje">%</button>
+    <button class="key op" data-k="/" aria-label="Dividir">&#247;</button>
+
+    <button class="key num" data-k="7">7</button>
+    <button class="key num" data-k="8">8</button>
+    <button class="key num" data-k="9">9</button>
+    <button class="key op" data-k="*" aria-label="Multiplicar">&#215;</button>
+
+    <button class="key num" data-k="4">4</button>
+    <button class="key num" data-k="5">5</button>
+    <button class="key num" data-k="6">6</button>
+    <button class="key op" data-k="-" aria-label="Restar">&#8722;</button>
+
+    <button class="key num" data-k="1">1</button>
+    <button class="key num" data-k="2">2</button>
+    <button class="key num" data-k="3">3</button>
+    <button class="key op" data-k="+" aria-label="Sumar">+</button>
+
+    <button class="key num zero" data-k="0">0</button>
+    <button class="key num" data-k="." aria-label="Coma decimal">,</button>
+    <button class="key op" data-k="=" aria-label="Igual">=</button>
+  </div>
+</main>
+<button class="fs" id="fs" hidden aria-label="Pantalla completa">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+</button>
+
+<script>
+(function () {
+  var displayEl = document.getElementById('display');
+  var screenEl = document.getElementById('screen');
+  var clearEl = document.getElementById('clear');
+  var opKeys = {};
+  document.querySelectorAll('.key.op').forEach(function (b) { opKeys[b.dataset.k] = b; });
+
+  var cur = '0';        // number being shown, internal form with "." decimal
+  var base = null;      // pending + or -  : {v, op}
+  var term = null;      // pending x or / (higher priority): {v, op}
+  var op = null;        // last operator pressed (for highlight)
+  var fresh = true;     // next digit starts a new number
+  var repeat = null;    // last operation, reused by repeated "="
+  var dirty = false;    // decides AC vs C
+  var err = false;
+
+  function num(s) { return parseFloat(s); }
+
+  function fmtNum(n) {
+    if (!isFinite(n)) { err = true; return 'Error'; }
+    if (n === 0) return '0';
+    var a = Math.abs(n);
+    if (a >= 999999999.5 || a < 1e-6) {
+      var s = n.toExponential(5);
+      var parts = s.split('e');
+      var m = parts[0].indexOf('.') >= 0 ? parts[0].replace(/0+$/, '').replace(/\.$/, '') : parts[0];
+      return m + 'e' + parts[1];
+    }
+    return String(Number(n.toPrecision(9)));
+  }
+
+  function show(s) {
+    if (s === 'Error') return s;
+    if (s.indexOf('e') >= 0) return s.replace('.', ',');
+    var neg = s.charAt(0) === '-';
+    var body = neg ? s.slice(1) : s;
+    var p = body.split('.');
+    var i = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (neg ? '-' : '') + i + (p.length > 1 ? ',' + p[1] : '');
+  }
+
+  function fit() {
+    var base = Math.min(200, Math.max(48, screenEl.clientWidth * 0.2));
+    var size = base;
+    displayEl.style.fontSize = size + 'px';
+    while (displayEl.scrollWidth > displayEl.clientWidth && size > 26) {
+      size -= 2;
+      displayEl.style.fontSize = size + 'px';
+    }
+  }
+
+  function render() {
+    displayEl.textContent = err ? 'Error' : show(cur);
+    fit();
+    clearEl.textContent = dirty ? 'C' : 'AC';
+    Object.keys(opKeys).forEach(function (k) {
+      opKeys[k].classList.toggle('on', !!op && fresh && k === op);
+    });
+  }
+
+  function apply(a, o, b) {
+    if (o === '+') return a + b;
+    if (o === '-') return a - b;
+    if (o === '*') return a * b;
+    return b === 0 ? NaN : a / b;
+  }
+  function calc(a, o, b) { return fmtNum(apply(a, o, b)); }
+
+  function resetAll() {
+    cur = '0'; base = null; term = null; op = null; fresh = true; repeat = null; dirty = false; err = false;
+  }
+
+  function digitCount(s) { return s.replace(/[^0-9]/g, '').length; }
+
+  function press(k) {
+    if (err && k !== 'clear') resetAll();
+
+    if (/^[0-9]$/.test(k)) {
+      if (fresh) { cur = k; fresh = false; }
+      else if (digitCount(cur) < 9) { cur = (cur === '0') ? k : (cur === '-0' ? '-' + k : cur + k); }
+      dirty = true;
+    } else if (k === '.') {
+      if (fresh) { cur = '0.'; fresh = false; }
+      else if (cur.indexOf('.') < 0 && digitCount(cur) < 9) cur += '.';
+      dirty = true;
+    } else if (k === '+' || k === '-' || k === '*' || k === '/') {
+      var x;
+      if (op && fresh) {            // operator changed: undo the last one
+        if (term) { x = term.v; term = null; }
+        else if (base) { x = base.v; base = null; }
+        else x = num(cur);
+      } else x = num(cur);
+      if (term) { x = apply(term.v, term.op, x); term = null; }
+      if (k === '*' || k === '/') {
+        term = { v: x, op: k };
+      } else {
+        if (base) x = apply(base.v, base.op, x);
+        base = { v: x, op: k };
+      }
+      cur = fmtNum(x);
+      if (err) { render(); return; }
+      op = k; fresh = true; repeat = null; dirty = true;
+    } else if (k === '=') {
+      if (term || base) {
+        var b = num(cur), r = b;
+        var rop = term ? term.op : base.op;
+        if (term) r = apply(term.v, term.op, r);
+        if (base) r = apply(base.v, base.op, r);
+        cur = fmtNum(r);
+        if (!err) repeat = { op: rop, b: b };
+        term = null; base = null; op = null; fresh = true;
+      } else if (repeat) {
+        cur = calc(num(cur), repeat.op, repeat.b);
+        fresh = true;
+      }
+      dirty = true;
+    } else if (k === 'neg') {
+      if (fresh && op) { cur = '-0'; fresh = false; }
+      else cur = cur.charAt(0) === '-' ? cur.slice(1) : '-' + cur;
+      dirty = true;
+    } else if (k === 'pct') {
+      cur = fmtNum(num(cur) / 100);
+      fresh = true;
+      dirty = true;
+    } else if (k === 'clear') {
+      if (dirty && !err) { cur = '0'; fresh = true; dirty = false; }
+      else resetAll();
+    } else if (k === 'back') {
+      if (fresh) return;
+      cur = cur.slice(0, -1);
+      if (cur === '' || cur === '-') cur = '0';
+    }
+    render();
+  }
+
+  // Taps and clicks
+  document.getElementById('keys').addEventListener('click', function (e) {
+    var b = e.target.closest('.key');
+    if (b) press(b.dataset.k);
+  });
+
+  // Keyboard
+  var keyMap = { '+': '+', '-': '-', '*': '*', 'x': '*', 'X': '*', '/': '/', '.': '.', ',': '.', '%': 'pct', '=': '=', 'Enter': '=', 'Escape': 'clear', 'Backspace': 'back', 'Delete': 'clear' };
+  window.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = /^[0-9]$/.test(e.key) ? e.key : keyMap[e.key];
+    if (!k) return;
+    e.preventDefault();
+    press(k);
+    var sel = k === 'pct' ? 'pct' : k;
+    var btn = document.querySelector('.key[data-k="' + sel + '"]');
+    if (btn) { btn.classList.add('pressed'); setTimeout(function () { btn.classList.remove('pressed'); }, 110); }
+  });
+
+  // Swipe on the display deletes the last digit, like the original
+  var sx = null;
+  screenEl.addEventListener('pointerdown', function (e) { sx = e.clientX; });
+  window.addEventListener('pointerup', function (e) {
+    if (sx !== null && Math.abs(e.clientX - sx) > 36) press('back');
+    sx = null;
+  });
+  window.addEventListener('pointercancel', function () { sx = null; });
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+  var fsBtn = document.getElementById('fs');
+  if (document.fullscreenEnabled) {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener('click', function () {
+      try {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen().catch(function () { fsBtn.hidden = true; });
+      } catch (e) { fsBtn.hidden = true; }
+    });
+  }
+  window.addEventListener('resize', fit);
+  render();
+})();
+</script>
+
+</body>
+</html>
